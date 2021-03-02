@@ -12,18 +12,22 @@ type Page struct {
 	Body  []byte
 }
 
+var templates = template.Must(template.ParseFiles("homepage.html", "error.html", "resources.html"))
+
 func (p *Page) save() error {
 	filename := p.Title + ".txt"
 	return ioutil.WriteFile(filename, p.Body, 0600)
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-	t, _ := template.ParseFiles(tmpl + ".html")
-	t.Execute(w, p)
+	err := templates.ExecuteTemplate(w, tmpl+".html", p)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func loadPage(title string) (*Page, error) {
-	filename := title + ".txt"
+	filename := title + ".html"
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -31,17 +35,30 @@ func loadPage(title string) (*Page, error) {
 	return &Page{Title: title, Body: body}, nil
 }
 
+func errorHandler(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Path[len("/"):]
+	p, err := loadPage(title)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	renderTemplate(w, title, p)
+}
+
+
+
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[len("/mainpage/"):]
 	p, err := loadPage(title)
 	if err != nil {
-		p = &Page{Title: title}
+		http.Redirect(w, r, "/error", http.StatusFound)
+		return
 	}
-	t, _ := template.ParseFiles("mainpage.html")
-	t.Execute(w, p)
+	renderTemplate(w, title, p)
 }
 
 func main() {
-	http.HandleFunc("/mainpage/", mainHandler)
+	http.HandleFunc("/", mainHandler)
+	http.HandleFunc("/error", errorHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

@@ -14,16 +14,58 @@ type Page struct {
 	Body  []byte
 }
 
+type weatherData struct {
+	City      string
+	Sunrise   int64
+	Sunset    int64
+	Temp      int
+	FeelLike  int
+	Pressure  int
+	Humidity  int
+	DewPoint  int
+	Uvi       int
+	Clouds    int
+	WindSpeed int
+	WindDeg   int
+}
+
 var templates = template.Must(template.ParseFiles("homepage.html", "error.html", "resources.html", "calendar.html", "weather.html"))
+
+
+func getJson(url string)(datafromURL string) {
+	var bodyString string
+	r, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer r.Body.Close()
+
+	if r.StatusCode == http.StatusOK {
+		bodyBytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		bodyString = string(bodyBytes)
+		fmt.Printf(bodyString)
+	}
+
+	return bodyString
+}
+
+
 
 func getWeather(latitude string, longitude string, part string) {
 	var url string
+	var jsonfromURL string
 	url = "https://api.openweathermap.org/data/2.5/onecall?lat={lat}&lon={lon}&exclude={part}&appid={API key}"
 	url = strings.ReplaceAll(url, "{lat}", latitude)
 	url = strings.ReplaceAll(url, "{lon}", longitude)
 	url = strings.ReplaceAll(url, "{part}", part)
-	url = strings.ReplaceAll(url, "{API key}", "bb7f4bb3c58c951bb1847c8d0c222746")
+	url = strings.ReplaceAll(url, "{API key}", "xxx")
 	fmt.Println(url)
+	jsonfromURL = getJson(url)
+	fmt.Println(jsonfromURL)
 }
 
 
@@ -56,7 +98,9 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	renderTemplate(w, title, p)
-	getWeather("33.441792", "-94.037689","hourly,daily,alerts")
+	getWeather("xxx", "xxx","hourly,daily,alerts")
+
+
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request) {

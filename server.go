@@ -1,17 +1,25 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
+	_ "github.com/lib/pq"
 )
 
 type Page struct {
 	Title string
 	Body  []byte
+}
+
+type Purchase struct {
+	Name string
+	Date string
+	Price float32
 }
 
 type weatherData struct {
@@ -29,7 +37,79 @@ type weatherData struct {
 	WindDeg   int
 }
 
-var templates = template.Must(template.ParseFiles("homepage.html", "error.html", "resources.html", "calendar.html", "weather.html"))
+var templates = template.Must(template.ParseFiles("homepage.html", "error.html", "resources.html", "calendar.html", "weather.html", "purchases.html"))
+
+func getFromDatabase(){
+	const(
+		user= "xxx"
+		password = "xxx"
+		host = "xxx"
+		dbname = "xxx"
+		port = 5432
+	)
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Successfully connected!")
+	var myThing Purchase
+	userSql := "SELECT * FROM wydatki"
+	err = db.QueryRow(userSql).Scan(&myThing.Name,&myThing.Date, &myThing.Price)
+	if err != nil {
+		log.Fatal("Failed to execute query: ", err)
+	}
+	fmt.Printf(myThing.Name)
+}
+
+func insertIntoDatabase(){
+	const(
+		user= "xxx"
+		password = "xxx"
+		host = "xxx"
+		dbname = "xxx"
+		port = 5432
+	)
+
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Successfully connected!")
+	var lastInsertId int
+	err = db.QueryRow("INSERT INTO company(username,departname,created) VALUES($1,$2,$3) returning uid;", "car", "19.03.2021", "2332").Scan(&lastInsertId)
+	if err != nil {
+		log.Fatal("Failed to execute query: ", err)
+		}
+
+	fmt.Println("last inserted id =", lastInsertId)
+
+
+
+
+}
 
 
 func getJson(url string)(datafromURL string) {
@@ -100,6 +180,17 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, title, p)
 	getWeather("xxx", "xxx","hourly,daily,alerts")
 
+}
+
+func expensesHandler(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Path[len("/"):]
+	p, err := loadPage(title)
+	if err != nil {
+		http.Redirect(w, r, "/error", http.StatusFound)
+		return
+	}
+	renderTemplate(w, title, p)
+	getFromDatabase()
 
 }
 
@@ -127,5 +218,6 @@ func main() {
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/error", errorHandler)
 	http.HandleFunc("/weather", weatherHandler)
+	http.HandleFunc("/purchases", expensesHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

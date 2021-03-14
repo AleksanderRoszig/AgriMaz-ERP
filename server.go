@@ -17,6 +17,7 @@ type Page struct {
 }
 
 type Purchase struct {
+	id int
 	Name string
 	Date string
 	Price float32
@@ -36,18 +37,16 @@ type weatherData struct {
 	WindSpeed int
 	WindDeg   int
 }
-
+const(
+	user= ""
+	password = ""
+	host = ""
+	dbname = "company"
+	port = 5432
+)
 var templates = template.Must(template.ParseFiles("homepage.html", "error.html", "resources.html", "calendar.html", "weather.html", "purchases.html"))
 
 func getFromDatabase(){
-	const(
-		user= "xxx"
-		password = "xxx"
-		host = "xxx"
-		dbname = "xxx"
-		port = 5432
-	)
-
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
@@ -65,8 +64,8 @@ func getFromDatabase(){
 
 	fmt.Println("Successfully connected!")
 	var myThing Purchase
-	userSql := "SELECT * FROM wydatki"
-	err = db.QueryRow(userSql).Scan(&myThing.Name,&myThing.Date, &myThing.Price)
+	userSql := "SELECT * FROM expenses"
+	err = db.QueryRow(userSql).Scan(&myThing.id, &myThing.Name, &myThing.Date, &myThing.Price)
 	if err != nil {
 		log.Fatal("Failed to execute query: ", err)
 	}
@@ -74,14 +73,6 @@ func getFromDatabase(){
 }
 
 func insertIntoDatabase(){
-	const(
-		user= "xxx"
-		password = "xxx"
-		host = "xxx"
-		dbname = "xxx"
-		port = 5432
-	)
-
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
@@ -99,18 +90,11 @@ func insertIntoDatabase(){
 
 	fmt.Println("Successfully connected!")
 	var lastInsertId int
-	err = db.QueryRow("INSERT INTO company(username,departname,created) VALUES($1,$2,$3) returning uid;", "car", "19.03.2021", "2332").Scan(&lastInsertId)
+	err = db.QueryRow("INSERT INTO expenses(name,date,price) VALUES($1,$2,$3) returning id", "car", "19.03.2021", "2332").Scan(&lastInsertId)
 	if err != nil {
 		log.Fatal("Failed to execute query: ", err)
 		}
-
-	fmt.Println("last inserted id =", lastInsertId)
-
-
-
-
 }
-
 
 func getJson(url string)(datafromURL string) {
 	var bodyString string
@@ -118,7 +102,6 @@ func getJson(url string)(datafromURL string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	defer r.Body.Close()
 
 	if r.StatusCode == http.StatusOK {
@@ -129,11 +112,8 @@ func getJson(url string)(datafromURL string) {
 		bodyString = string(bodyBytes)
 		fmt.Printf(bodyString)
 	}
-
 	return bodyString
 }
-
-
 
 func getWeather(latitude string, longitude string, part string) {
 	var url string
@@ -147,7 +127,6 @@ func getWeather(latitude string, longitude string, part string) {
 	jsonfromURL = getJson(url)
 	fmt.Println(jsonfromURL)
 }
-
 
 func (p *Page) save() error {
 	filename := p.Title + ".txt"
@@ -179,7 +158,6 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	renderTemplate(w, title, p)
 	getWeather("xxx", "xxx","hourly,daily,alerts")
-
 }
 
 func expensesHandler(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +169,7 @@ func expensesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	renderTemplate(w, title, p)
 	getFromDatabase()
-
+	//insertIntoDatabase()
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request) {
@@ -217,7 +195,6 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/error", errorHandler)
-	http.HandleFunc("/weather", weatherHandler)
 	http.HandleFunc("/purchases", expensesHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

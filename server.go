@@ -3,12 +3,12 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	_ "github.com/lib/pq"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
-	_ "github.com/lib/pq"
 )
 
 type Page struct {

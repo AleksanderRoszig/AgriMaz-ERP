@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -12,8 +13,8 @@ import (
 var db *sql.DB
 const(
 	user= "myuser"
-	password = "palakopowe"
-	host = "35.157.134.249"
+	password = "test"
+	host = "3.65.21.44"
 	port = 5432
 )
 const createDatabase = `CREATE DATABASE tests;`
@@ -31,23 +32,29 @@ type TodoItemModel struct{
        Completed bool
 }
 func ensureTableExists() {
+
+	/*
 	if _, err := db.Exec(createDatabase);
 	err != nil {
 		log.Fatal(err)
 	}
-
+*/
 	if _, err := db.Exec(tableCreationQuery);
 	err != nil {
 		log.Fatal(err)
 	}
 }
 
-func CreateItem(w http.ResponseWriter, r *http.Request) {
-    description := r.FormValue("description")
-    log.WithFields(log.Fields{"description": description}).Info("Add new TodoItem. Saving to database.")
-    todo := &TodoItemModel{Description: description, Completed: false}
+func createItem(w http.ResponseWriter, r *http.Request) {
+	var todo TodoItemModel
+	err := json.NewDecoder(r.Body).Decode(&todo)
+	if err != nil {
+		http.Error(w,err.Error(),http.StatusBadRequest)
+		return
+	}
+	fmt.Println(todo)
 	var lastInsertId int
-	var err error
+
 	err = db.QueryRow("INSERT INTO todolist(description, completed) VALUES($2, $3) returning id", todo).Scan(&lastInsertId)
 	if err != nil {
 		log.Fatal("Failed to execute query: ", err)
@@ -55,8 +62,9 @@ func CreateItem(w http.ResponseWriter, r *http.Request) {
 	userSql := "SELECT * FROM todolist"
 	err = db.QueryRow(userSql).Scan(&todo.Id, &todo.Description, &todo.Completed)
     w.Header().Set("Content-Type", "application/json")
-}
 
+    }
+  //   */
 
 func Healthz(w http.ResponseWriter, r *http.Request) {
 	log.Info("API Health is OK")
@@ -92,6 +100,7 @@ func main() {
     ensureTableExists()
 	router := mux.NewRouter()
 	router.HandleFunc("/healthz", Healthz).Methods("GET")
+	router.HandleFunc("/todo", createItem).Methods("POST")
 	http.ListenAndServe(":8000", router)
 
 }

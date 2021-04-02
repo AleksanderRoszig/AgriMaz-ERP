@@ -7,100 +7,178 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
-	"io"
 	"net/http"
+	"strconv"
 )
 var db *sql.DB
 const(
-	user= "myuser"
-	password = "test"
-	host = "3.65.21.44"
-	port = 5432
+	Host = "18.198.177.82"
+	Port = 5432
+	User= "myuser"
+	Password = "test"
+	Dbname = "postgres"
 )
-const createDatabase = `CREATE DATABASE tests;`
-
-const tableCreationQuery = `CREATE TABLE IF NOT EXISTS todolist
-(
-    id SERIAL PRIMARY KEY, 
-    description varchar(40) NOT NULL,
-    completed integer NOT NULL
-)`
-
-type TodoItemModel struct{
-       Id int
-       Description string
-       Completed bool
-}
-func ensureTableExists() {
-
-	/*
-	if _, err := db.Exec(createDatabase);
-	err != nil {
-		log.Fatal(err)
-	}
-*/
-	if _, err := db.Exec(tableCreationQuery);
-	err != nil {
-		log.Fatal(err)
-	}
+type App struct {
+	Router *mux.Router
+	DB     *sql.DB
 }
 
-func createItem(w http.ResponseWriter, r *http.Request) {
-	var todo TodoItemModel
-	err := json.NewDecoder(r.Body).Decode(&todo)
-	if err != nil {
-		http.Error(w,err.Error(),http.StatusBadRequest)
-		return
-	}
-	fmt.Println(todo)
-	var lastInsertId int
+func (a *App) Initialize(host string, port int, user string, password string, dbname string) {
+	connectionString := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", Host, Port, User, Password, Dbname)
 
-	err = db.QueryRow("INSERT INTO todolist(description, completed) VALUES($2, $3) returning id", todo).Scan(&lastInsertId)
-	if err != nil {
-		log.Fatal("Failed to execute query: ", err)
-	}
-	userSql := "SELECT * FROM todolist"
-	err = db.QueryRow(userSql).Scan(&todo.Id, &todo.Description, &todo.Completed)
-    w.Header().Set("Content-Type", "application/json")
-
-    }
-  //   */
-
-func Healthz(w http.ResponseWriter, r *http.Request) {
-	log.Info("API Health is OK")
-	w.Header().Set("Content-Type", "application/json")
-	io.WriteString(w, `{"alive": true}`)
-}
-
-func init() {
-	log.SetFormatter(&log.TextFormatter{})
-	log.SetReportCaller(true)
-}
-func connectToDB() {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s sslmode=disable",
-		host, port, user, password)
 	var err error
-	db, err = sql.Open("postgres", psqlInfo)
+	a.DB, err = sql.Open("postgres", connectionString)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = a.DB.Ping()
 	if err != nil {
 		panic(err)
 	}
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
+	a.Router = mux.NewRouter()
 
+	a.initializeRoutes()
 	fmt.Println("Successfully connected!")
 }
 
 
+func (a *App) Run(addr string) {
+	log.Fatal(http.ListenAndServe(":8010", a.Router))
+}
+
+func (a *App) getTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid task ID")
+		return
+	}
+
+	p := todoItemModel{Id: id}
+	if err := p.getTask(a.DB); err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			respondWithError(w, http.StatusNotFound, "Task not found")
+		default:
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, p)
+}
+
+
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	respondWithJSON(w, code, map[string]string{"error": message})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	response, _ := json.Marshal(payload)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(response)
+}
+
+func (a *App) getTasks(w http.ResponseWriter, r *http.Request) {
+	count, _ := strconv.Atoi(r.FormValue("count"))
+	start, _ := strconv.Atoi(r.FormValue("start"))
+
+	if count > 10 || count < 1 {
+		count = 10
+	}
+	if start < 0 {
+		start = 0
+	}
+
+	products, err := getTasks(a.DB, start, count)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, products)
+}
+
+func (a *App) createTask(w http.ResponseWriter, r *http.Request) {
+	var p todoItemModel
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&p); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	if err := p.createTask(a.DB); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, p)
+}
+
+
+func (a *App) updateTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid task ID")
+		return
+	}
+
+	var p todoItemModel
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&p); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid resquest payload")
+		return
+	}
+	defer r.Body.Close()
+	p.Id = id
+
+	if err := p.updateTask(a.DB); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, p)
+}
+
+func (a *App) deleteTask(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Task ID")
+		return
+	}
+
+	p := todoItemModel{Id: id}
+	if err := p.deleteTask(a.DB); err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]string{"result": "success"})
+}
+
+
+func (a *App) initializeRoutes() {
+	a.Router.HandleFunc("/products", a.getTasks).Methods("GET")
+	a.Router.HandleFunc("/task", a.createTask).Methods("POST")
+	a.Router.HandleFunc("/task/{id:[0-9]+}", a.getTask).Methods("GET")
+	a.Router.HandleFunc("/task/{id:[0-9]+}", a.updateTask).Methods("PUT")
+	a.Router.HandleFunc("/task/{id:[0-9]+}", a.deleteTask).Methods("DELETE")
+}
+func init() {
+	log.SetFormatter(&log.TextFormatter{})
+	log.SetReportCaller(true)
+}
+
 func main() {
 	log.Info("Starting Todolist API server")
-	connectToDB()
-    ensureTableExists()
-	router := mux.NewRouter()
-	router.HandleFunc("/healthz", Healthz).Methods("GET")
-	router.HandleFunc("/todo", createItem).Methods("POST")
-	http.ListenAndServe(":8000", router)
+	a := App{}
+	a.Initialize(Host, Port, User, Password, Dbname)
+
+	a.Run(":8010")
 
 }

@@ -1,4 +1,4 @@
-package main
+package todo
 
 import (
 	"database/sql"
@@ -6,8 +6,8 @@ import (
 
 type todoItemModel struct{
 	Id int `json:"id"`
-	Description string `json:"name"`
-	Completed bool `json:"completed"`
+	Description string `json:"description"`
+	Completed int `json:"completed"`
 }
 
 

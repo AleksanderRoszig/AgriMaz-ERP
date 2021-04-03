@@ -1,4 +1,4 @@
-package main
+package todo
 
 import (
 	"database/sql"
@@ -16,7 +16,7 @@ const(
 	Port = 5432
 	User= "myuser"
 	Password = "test"
-	Dbname = "postgres"
+	Dbname = "todo"
 )
 type App struct {
 	Router *mux.Router
@@ -103,14 +103,18 @@ func (a *App) getTasks(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) createTask(w http.ResponseWriter, r *http.Request) {
 	var p todoItemModel
+	fmt.Println(r.Body)
 	decoder := json.NewDecoder(r.Body)
+	fmt.Println("testest")
 	if err := decoder.Decode(&p); err != nil {
+		fmt.Println("cos poszlo xle")
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 	defer r.Body.Close()
 
 	if err := p.createTask(a.DB); err != nil {
+		fmt.Println("rerrorr")
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -163,7 +167,7 @@ func (a *App) deleteTask(w http.ResponseWriter, r *http.Request) {
 
 
 func (a *App) initializeRoutes() {
-	a.Router.HandleFunc("/products", a.getTasks).Methods("GET")
+	a.Router.HandleFunc("/tasks", a.getTasks).Methods("GET")
 	a.Router.HandleFunc("/task", a.createTask).Methods("POST")
 	a.Router.HandleFunc("/task/{id:[0-9]+}", a.getTask).Methods("GET")
 	a.Router.HandleFunc("/task/{id:[0-9]+}", a.updateTask).Methods("PUT")

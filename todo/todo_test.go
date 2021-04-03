@@ -1,4 +1,4 @@
-package main
+package todo
 
 import (
 	"bytes"
@@ -34,10 +34,10 @@ func clearTable() {
 
 const tableCreationQuery = `CREATE TABLE IF NOT EXISTS tasks
 (
-    id SERIAL,
-    name TEXT NOT NULL,
-    price NUMERIC(10,2) NOT NULL DEFAULT 0.00,
-    CONSTRAINT tasks_pkey PRIMARY KEY (id)
+    Id     integer,
+    Description    varchar(40),
+	Completed integer,
+    PRIMARY KEY(Id)
 )`
 
 
@@ -90,7 +90,7 @@ func TestCreateTask(t *testing.T) {
 
 	clearTable()
 
-	var jsonStr = []byte(`{"name":"test task", "price": 11.22}`)
+	var jsonStr = []byte(`{"description":"testowy task dla testu", "completed": 1}`)
 	req, _ := http.NewRequest("POST", "/task", bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -100,12 +100,12 @@ func TestCreateTask(t *testing.T) {
 	var m map[string]interface{}
 	json.Unmarshal(response.Body.Bytes(), &m)
 
-	if m["name"] != "test task" {
-		t.Errorf("Expected task name to be 'test task'. Got '%v'", m["name"])
+	if m["description"] != "testowy task dla testu" {
+		t.Errorf("Expected task name to be 'test task'. Got '%v'", m["description"])
 	}
 
-	if m["price"] != 11.22 {
-		t.Errorf("Expected task price to be '11.22'. Got '%v'", m["price"])
+	if m["completed"] != "1" {
+		t.Errorf("Expected task price to be '11.22'. Got '%v'", m["1"])
 	}
 
 	// the id is compared to 1.0 because JSON unmarshaling converts numbers to

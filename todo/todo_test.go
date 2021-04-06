@@ -34,10 +34,9 @@ func clearTable() {
 
 const tableCreationQuery = `CREATE TABLE IF NOT EXISTS tasks
 (
-    Id     integer,
+    Id	SERIAL PRIMARY KEY,
     Description    varchar(40),
-	Completed integer,
-    PRIMARY KEY(Id)
+	Completed int
 )`
 
 
@@ -90,7 +89,7 @@ func TestCreateTask(t *testing.T) {
 
 	clearTable()
 
-	var jsonStr = []byte(`{"description":"testowy task dla testu", "completed": 1}`)
+	var jsonStr = []byte(`{"description":"testowy task dla testu", "completed": 0}`)
 	req, _ := http.NewRequest("POST", "/task", bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -104,8 +103,8 @@ func TestCreateTask(t *testing.T) {
 		t.Errorf("Expected task name to be 'test task'. Got '%v'", m["description"])
 	}
 
-	if m["completed"] != "1" {
-		t.Errorf("Expected task price to be '11.22'. Got '%v'", m["1"])
+	if m["completed"] != 0.0 {
+		t.Errorf("Expected task price to be '0'. Got '%v'", m["completed"])
 	}
 
 	// the id is compared to 1.0 because JSON unmarshaling converts numbers to
@@ -132,7 +131,7 @@ func addTasks(count int) {
 	}
 
 	for i := 0; i < count; i++ {
-		a.DB.Exec("INSERT INTO tasks(name, price) VALUES($1, $2)", "Task "+strconv.Itoa(i), (i+1.0)*10)
+		a.DB.Exec("INSERT INTO tasks(DESCRIPTION, COMPLETED) VALUES($1, $2)", "Task "+ strconv.Itoa(i), 2)
 	}
 }
 

@@ -103,9 +103,7 @@ func (a *App) getTasks(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) createTask(w http.ResponseWriter, r *http.Request) {
 	var p todoItemModel
-	fmt.Println(r.Body)
 	decoder := json.NewDecoder(r.Body)
-	fmt.Println("testest")
 	if err := decoder.Decode(&p); err != nil {
 		fmt.Println("cos poszlo xle")
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")

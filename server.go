@@ -1,8 +1,6 @@
-package AgriMaz_ERP
+package main
 
 import (
-	"database/sql"
-	"fmt"
 	_ "github.com/lib/pq"
 	"html/template"
 	"io/ioutil"
@@ -15,73 +13,7 @@ type Page struct {
 	Body  []byte
 }
 
-type Purchase struct {
-	id int
-	Name string
-	Date string
-	Price float32
-}
-
-const(
-	user= ""
-	password = ""
-	host = ""
-	dbname = "company"
-	port = 5432
-)
-var templates = template.Must(template.ParseFiles("homepage.html", "error.html", "resources.html", "calendar.html", "weather.html", "purchases.html"))
-
-func getFromDatabase(){
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
-
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Successfully connected!")
-	var myThing Purchase
-	userSql := "SELECT * FROM expenses"
-	err = db.QueryRow(userSql).Scan(&myThing.id, &myThing.Name, &myThing.Date, &myThing.Price)
-	if err != nil {
-		log.Fatal("Failed to execute query: ", err)
-	}
-	fmt.Printf(myThing.Name)
-}
-
-func insertIntoDatabase(){
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
-
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Successfully connected!")
-	var lastInsertId int
-	err = db.QueryRow("INSERT INTO expenses(name,date,price) VALUES($1,$2,$3) returning id", "car", "19.03.2021", "2332").Scan(&lastInsertId)
-	if err != nil {
-		log.Fatal("Failed to execute query: ", err)
-	}
-}
-
-
+var templates = template.Must(template.ParseFiles("homepage.html", "error.html", "resources.html", "calendar.html", "purchases.html"))
 
 func (p *Page) save() error {
 	filename := p.Title + ".txt"
@@ -114,8 +46,6 @@ func expensesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	renderTemplate(w, title, p)
-	getFromDatabase()
-	//insertIntoDatabase()
 }
 
 func errorHandler(w http.ResponseWriter, r *http.Request) {

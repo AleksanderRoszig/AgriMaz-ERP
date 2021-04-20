@@ -1,18 +1,14 @@
-package weather
+package main
 
 import (
-	"database/sql"
 	"fmt"
-	"github.com/gorilla/mux"
+	"html/template"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
 )
 
-type App struct {
-	Router *mux.Router
-	DB     *sql.DB
-}
 type weatherData struct {
 	City      string
 	Sunrise   int64
@@ -28,6 +24,29 @@ type weatherData struct {
 	WindDeg   int
 }
 
+type Page struct {
+	Title string
+	Body  []byte
+}
+
+var templates = template.Must(template.ParseFiles("weather.html", "C:/Users/Aleksander/go/src/AgriMaz-ERP/weather/error.html" ))
+
+func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
+	err := templates.ExecuteTemplate(w, tmpl+".html", p)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func loadPage(title string) (*Page, error) {
+	filename := title + ".html"
+	body, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &Page{Title: title, Body: body}, nil
+}
+
 func weatherHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[len("/"):]
 	p, err := loadPage(title)
@@ -36,9 +55,8 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	renderTemplate(w, title, p)
-	getWeather("xxx", "xxx","hourly,daily,alerts")
+	//getWeather("xxx", "xxx","hourly,daily,alerts")
 }
-
 
 func getJson(url string)(datafromURL string) {
 	var bodyString string
@@ -70,4 +88,30 @@ func getWeather(latitude string, longitude string, part string) {
 	fmt.Println(url)
 	jsonfromURL = getJson(url)
 	fmt.Println(jsonfromURL)
+}
+
+func errorHandler(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Path[len("/"):]
+	p, err := loadPage(title)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	renderTemplate(w, title, p)
+}
+
+func mainHandler(w http.ResponseWriter, r *http.Request) {
+	title := r.URL.Path[len("/"):]
+	p, err := loadPage(title)
+	if err != nil {
+		http.Redirect(w, r, "/error", http.StatusFound)
+		return
+	}
+	renderTemplate(w, title, p)
+}
+
+func main() {
+	http.HandleFunc("/weather", mainHandler)
+	http.HandleFunc("/error", errorHandler)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

@@ -125,6 +125,7 @@ func (a *App) updateTask(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
+		fmt.Println("blad invalid task ID")
 		respondWithError(w, http.StatusBadRequest, "Invalid task ID")
 		return
 	}
@@ -132,6 +133,7 @@ func (a *App) updateTask(w http.ResponseWriter, r *http.Request) {
 	var p todoItemModel
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&p); err != nil {
+		fmt.Println("blad invalid task ID2")
 		respondWithError(w, http.StatusBadRequest, "Invalid resquest payload")
 		return
 	}
@@ -139,6 +141,7 @@ func (a *App) updateTask(w http.ResponseWriter, r *http.Request) {
 	p.Id = id
 
 	if err := p.updateTask(a.DB); err != nil {
+		fmt.Println("blad invalid task ID3")
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

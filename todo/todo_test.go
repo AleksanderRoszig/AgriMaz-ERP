@@ -146,7 +146,7 @@ func TestUpdateTask(t *testing.T) {
 	var originalTask map[string]interface{}
 	json.Unmarshal(response.Body.Bytes(), &originalTask)
 
-	var jsonStr = []byte(`{"name":"test task - updated name", "price": 11.22}`)
+	var jsonStr = []byte(`{"description":"test task2", "completed": 1}`)
 	req, _ = http.NewRequest("PUT", "/task/1", bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -157,22 +157,21 @@ func TestUpdateTask(t *testing.T) {
 	var m map[string]interface{}
 	json.Unmarshal(response.Body.Bytes(), &m)
 
-	if m["id"] != originalTask["id"] {
-		t.Errorf("Expected the id to remain the same (%v). Got %v", originalTask["id"], m["id"])
+
+	if m["description"] != "test task2" {
+		t.Errorf("Expected task name to be 'test task2'. Got '%v'", m["description"])
 	}
 
-	if m["name"] == originalTask["name"] {
-		t.Errorf("Expected the name to change from '%v' to '%v'. Got '%v'", originalTask["name"], m["name"], m["name"])
-	}
-
-	if m["price"] == originalTask["price"] {
-		t.Errorf("Expected the price to change from '%v' to '%v'. Got '%v'", originalTask["price"], m["price"], m["price"])
+	// the id is compared to 1.0 because JSON unmarshaling converts numbers to
+	// floats, when the target is a map[string]interface{}
+	if m["completed"] != 1.0 {
+			t.Errorf("Expected completed to be '1'. Got '%v'", m["completed"])
 	}
 }
 
 
 func TestDeleteTask(t *testing.T) {
-	clearTable()
+	//clearTable()
 	addTasks(1)
 
 	req, _ := http.NewRequest("GET", "/task/1", nil)

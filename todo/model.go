@@ -18,7 +18,7 @@ func (p *todoItemModel) getTask(db *sql.DB) error {
 
 func (p *todoItemModel) updateTask(db *sql.DB) error {
 	_, err :=
-		db.Exec("UPDATE tasks SET DESCRIPTON=$1, COMPLETED=$2 WHERE id=$3",
+		db.Exec("UPDATE tasks SET description=$1, completed=$2 WHERE id=$3",
 			p.Description, p.Completed, p.Id)
 
 	return err
